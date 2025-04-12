@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { SendIcon } from 'lucide-react'
+import { questionApi } from '@/api'
 
 interface Message {
-  role: 'user' | 'assistant'
+  role: "user" | "assistant"
   content: string
   code?: {
     language: string
@@ -21,31 +22,59 @@ export function ChatInterface() {
   const [input, setInput] = React.useState('')
   const scrollRef = React.useRef<HTMLDivElement>(null)
 
-  const handleSend = () => {
+  // Modified handleSend with explicit type assertions for role
+  const handleSend = async () => {
     if (!input.trim()) return
 
-    const newMessages = [
-      ...messages,
-      { role: 'user', content: input },
-      // Simulated response - replace with actual API call
-      {
-        role: 'assistant',
-        content: 'Here\'s an example response with some code:',
-        code: {
-          language: 'typescript',
-          content: 'function example() {\n  console.log("Hello!");\n}'
+    // Append the user's message immediately with role as "user"
+    setMessages(prevMessages => [
+      ...prevMessages,
+      { role: "user", content: input } as Message
+    ])
+
+    try {
+      // Prepare the payload (update repository_id as needed)
+      const questionPayload = { repository_id: "repo-123", question: input }
+      const questionData = await questionApi.askQuestion(questionPayload)
+
+      // Extract the answer text, using a fallback if not provided
+      const answerText = questionData.response?.text_response || "No answer received from the server."
+
+      // Optionally attach the first code snippet if available
+      let codeSnippet = undefined
+      if (
+        questionData.response?.code_snippets &&
+        questionData.response.code_snippets.length > 0
+      ) {
+        codeSnippet = {
+          language: questionData.response.code_snippets[0].language,
+          content: questionData.response.code_snippets[0].code,
         }
       }
-    ]
-    setMessages(newMessages)
-    setInput('')
 
-    // Scroll to bottom
-    setTimeout(() => {
-      if (scrollRef.current) {
-        scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+      // Append the assistant's response with the solid answer and role as "assistant"
+      const assistantMessage: Message = {
+        role: "assistant",
+        content: answerText,
+        code: codeSnippet
       }
-    }, 100)
+      setMessages(prevMessages => [...prevMessages, assistantMessage])
+
+      // Scroll to the bottom of the chat area
+      setTimeout(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+        }
+      }, 100)
+    } catch (error: any) {
+      console.error("Error asking question:", error)
+      setMessages(prevMessages => [
+        ...prevMessages,
+        { role: "assistant", content: "Error retrieving answer. Please try again." } as Message
+      ])
+    }
+
+    setInput('')
   }
 
   return (
