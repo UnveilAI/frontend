@@ -80,3 +80,19 @@
     @apply bg-background text-foreground;
   }
 }
+@keyframes glow-border {
+  0% {
+    box-shadow: 0 0 10px #00f6ff;
+  }
+  50% {
+    box-shadow: 0 0 20px #00f6ff, 0 0 30px #00f6ff;
+  }
+  100% {
+    box-shadow: 0 0 10px #00f6ff;
+  }
+}
+
+.animate-glow-border {
+  animation: glow-border 2s ease-in-out infinite;
+  border-radius: 1rem;
+}

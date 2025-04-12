@@ -8,14 +8,15 @@ import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { ShareNetwork } from 'phosphor-react'
 import { ShareOptionsModal } from '@/components/share-options-modal'
+import { WelcomeModal } from '@/components/welcome-modal' // ⬅️ new import
 
 export default function Home() {
   const [files, setFiles] = React.useState([])
   const [isShareModalOpen, setShareModalOpen] = React.useState(false)
+  const [showWelcome, setShowWelcome] = React.useState(true) // ⬅️ new state
 
   const handleFileSelect = (path: string) => {
     console.log('Selected file:', path)
-    // Here you would typically load the file contents and update the chat context
   }
 
   const handleShare = () => {
@@ -27,7 +28,9 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-screen relative">
+      {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />} {/* 🧠 modal here */}
+
       <header className="px-4 py-2 bg-card border-b">
         <div className="flex items-center justify-between">
           <div>
