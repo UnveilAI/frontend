@@ -117,8 +117,7 @@ export function isGitRepository(fileList: FileList): boolean {
              normalizedPath.startsWith(cleanPattern + '/');
     });
   }
-  
-export async function processDirectory(fileList: FileList): Promise<FileNode[]> {
+  export async function processDirectory(fileList: FileList): Promise<FileNode[]> {
     // Check if it's a Git repository
     const isGitRepo = isGitRepository(fileList);
     if (!isGitRepo) {
@@ -128,111 +127,105 @@ export async function processDirectory(fileList: FileList): Promise<FileNode[]> 
     // Parse gitignore patterns
     const ignorePatterns = await parseGitignore(fileList);
     
-    const root: { [key: string]: FileNode } = {};
+    // Create a map to store all directories by their path
+    const dirMap: { [path: string]: FileNode } = {};
     
-    // Convert FileList to array and sort by path to ensure parent directories are processed first
+    // Function to get or create a directory node
+    const getOrCreateDir = (path: string, name: string): FileNode => {
+      if (!dirMap[path]) {
+        dirMap[path] = {
+          name,
+          path,
+          type: 'directory',
+          children: [],
+          selected: false
+        };
+      }
+      return dirMap[path];
+    };
+    
+    // Convert FileList to array and sort by path
     const files = Array.from(fileList).sort((a, b) => 
       a.webkitRelativePath.localeCompare(b.webkitRelativePath)
     );
     
+    // First pass: create directory structure
     for (const file of files) {
       const pathParts = file.webkitRelativePath.split('/');
       // Skip the root directory name (first part)
       pathParts.shift();
       
-      // Skip files/directories that match gitignore patterns
-      if (shouldIgnore(pathParts.join('/'), ignorePatterns)) {
-        continue;
-      }
-      
-      const fileName = pathParts.pop() || '';
+      // Build directory tree
       let currentPath = '';
-      let currentLevel = root;
-      
-      // Process each directory in the path
-      for (const part of pathParts) {
+      for (let i = 0; i < pathParts.length - 1; i++) {
+        const part = pathParts[i];
+        const parentPath = currentPath;
         currentPath = currentPath ? `${currentPath}/${part}` : part;
         
+        // Skip if this path should be ignored
         if (shouldIgnore(currentPath, ignorePatterns)) {
-          // Skip this directory and all its children
-          currentLevel = {}; // Empty object to effectively skip processing
           break;
         }
         
-        if (!currentLevel[part]) {
-          currentLevel[part] = {
-            name: part,
-            path: currentPath,
-            type: 'directory',
-            children: [],
-            selected: false // Initialize as not selected
-          };
-        }
+        // Create directory node
+        const dirNode = getOrCreateDir(currentPath, part);
         
-        const currentNode = currentLevel[part];
-        currentLevel = currentNode.children?.reduce((acc: any, child) => {
-          acc[child.name] = child;
-          return acc;
-        }, {}) || {};
-        
-        if (!currentNode.children) {
-          currentNode.children = [];
+        // Link to parent directory
+        if (parentPath) {
+          const parentNode = dirMap[parentPath];
+          if (parentNode && !parentNode.children?.some(child => child.path === currentPath)) {
+            parentNode.children?.push(dirNode);
+          }
         }
       }
+    }
+    
+    // Second pass: add files to directories
+    for (const file of files) {
+      const pathParts = file.webkitRelativePath.split('/');
+      // Skip the root directory name (first part)
+      pathParts.shift();
       
-      // Skip if we've determined to ignore this path
-      if (Object.keys(currentLevel).length === 0) {
-        continue;
-      }
+      const fileName = pathParts[pathParts.length - 1];
+      const parentPath = pathParts.slice(0, -1).join('/');
+      const filePath = pathParts.join('/');
       
-      // Add the file
-      const filePath = currentPath ? `${currentPath}/${fileName}` : fileName;
-      
-      // Skip if the file itself should be ignored
+      // Skip if this file should be ignored
       if (shouldIgnore(filePath, ignorePatterns)) {
         continue;
       }
       
       // Only process text files
-      const isTextFile = isFileTypeSupported(fileName);
-      if (isTextFile) {
+      if (isFileTypeSupported(fileName)) {
         const content = await readFileContent(file);
-        const fileNode = {
+        
+        // Create file node
+        const fileNode: FileNode = {
           name: fileName,
           path: filePath,
-          type: 'file' as const,
+          type: 'file',
           content,
           selected: false
         };
         
-        // Add file to the current directory's children
-        if (pathParts.length > 0) {
-          let currentDir = null;
-          let path = '';
-          
-          // Find the parent directory
-          for (const part of pathParts) {
-            path = path ? `${path}/${part}` : part;
-            if (!currentDir) {
-              currentDir = root[part];
-            } else {
-              currentDir = currentDir.children?.find(child => child.name === part) as FileNode;
-            }
-            
-            if (!currentDir) break;
-          }
-          
-          if (currentDir) {
-            currentDir.children?.push(fileNode);
-          }
-        } else {
-          root[fileName] = fileNode;
+        // Add to parent directory
+        if (parentPath && dirMap[parentPath]) {
+          dirMap[parentPath].children?.push(fileNode);
+        } else if (!parentPath) {
+          // It's a root-level file, add it to dirMap
+          dirMap[fileName] = fileNode;
         }
       }
     }
     
-    return Object.values(root);
+    // Return only root-level nodes
+    return Object.values(dirMap).filter(node => {
+      const pathParts = node.path.split('/');
+      return pathParts.length === 1;
+    });
   }
+
+  
   function isFileTypeSupported(fileName: string): boolean {
     const textFileExtensions = [
       '.txt', '.js', '.jsx', '.ts', '.tsx', '.md', '.json', '.yaml', '.yml',
