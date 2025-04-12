@@ -13,6 +13,36 @@ export function isGitRepository(fileList: FileList): boolean {
       file.webkitRelativePath.split('/')[1] === '.git'
     );
   }
+  const DEFAULT_IGNORE_PATTERNS = [
+    'node_modules',
+    '.git',
+    '.DS_Store',
+    '*.log',
+    '.env',
+    '.env.local',
+    '.env.development',
+    '.env.test',
+    '.env.production',
+    'dist',
+    'build',
+    'coverage',
+    '.next',
+    '.cache',
+    '.idea',
+    '.vscode',
+    '*.min.js',
+    '*.min.css',
+    '*.lock',
+    'package-lock.json',
+    'yarn.lock',
+    'npm-debug.log*',
+    'yarn-debug.log*',
+    'yarn-error.log*',
+    '*.tsbuildinfo',
+    '*.swp',
+    '*.bak',
+    '*.tmp'
+  ];
   
   // Parse gitignore file
   export async function parseGitignore(fileList: FileList): Promise<string[]> {
@@ -20,31 +50,73 @@ export function isGitRepository(fileList: FileList): boolean {
       file.webkitRelativePath.endsWith('/.gitignore')
     );
     
-    if (!gitignoreFile) return ['node_modules', '*.log', '.DS_Store']; // Default patterns
+    let ignorePatterns = [...DEFAULT_IGNORE_PATTERNS];
     
-    const content = await readFileContent(gitignoreFile);
-    return content
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line && !line.startsWith('#'));
+    if (gitignoreFile) {
+      const content = await readFileContent(gitignoreFile);
+      const customPatterns = content
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line && !line.startsWith('#'));
+      
+      // Combine default patterns with patterns from .gitignore
+      ignorePatterns = [...ignorePatterns, ...customPatterns];
+    }
+    
+    return ignorePatterns;
   }
+  
   // Check if a file should be ignored based on gitignore patterns
-function shouldIgnore(path: string, ignorePatterns: string[]): boolean {
+  function shouldIgnore(path: string, ignorePatterns: string[]): boolean {
     const normalizedPath = path.startsWith('/') ? path.substring(1) : path;
     
+    // Special case: always ignore node_modules and .git directories
+    if (
+      normalizedPath === 'node_modules' || 
+      normalizedPath.startsWith('node_modules/') ||
+      normalizedPath === '.git' || 
+      normalizedPath.startsWith('.git/')
+    ) {
+      return true;
+    }
+    
     return ignorePatterns.some(pattern => {
-      // Simple implementation - can be expanded for more complex gitignore rules
-      if (pattern.startsWith('*')) {
+      // Remove leading and trailing slashes for consistency
+      const cleanPattern = pattern.replace(/^\/|\/$/g, '');
+      
+      // Exact match
+      if (normalizedPath === cleanPattern) {
+        return true;
+      }
+      
+      // Directory match (pattern ending with /)
+      if (pattern.endsWith('/') && normalizedPath.startsWith(cleanPattern)) {
+        return true;
+      }
+      
+      // File extension wildcard (e.g., *.js)
+      if (pattern.startsWith('*.')) {
         const extension = pattern.substring(1);
         return normalizedPath.endsWith(extension);
       }
       
-      return normalizedPath.includes(pattern) || 
-             normalizedPath.startsWith(pattern + '/') ||
-             normalizedPath === pattern;
+      // General wildcard at start (e.g., **/logs)
+      if (pattern.startsWith('**/')) {
+        const subPattern = pattern.substring(3);
+        return normalizedPath.includes(subPattern) || normalizedPath.endsWith(subPattern);
+      }
+      
+      // General wildcard at end (e.g., logs/**)
+      if (pattern.endsWith('/**')) {
+        const subPattern = pattern.substring(0, pattern.length - 3);
+        return normalizedPath.startsWith(subPattern);
+      }
+      
+      // Path includes the pattern or starts with pattern + /
+      return normalizedPath.includes(cleanPattern) || 
+             normalizedPath.startsWith(cleanPattern + '/');
     });
   }
-
   
 export async function processDirectory(fileList: FileList): Promise<FileNode[]> {
     // Check if it's a Git repository
