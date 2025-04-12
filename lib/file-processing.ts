@@ -117,114 +117,204 @@ export function isGitRepository(fileList: FileList): boolean {
              normalizedPath.startsWith(cleanPattern + '/');
     });
   }
+
+  // export async function processDirectory(fileList: FileList): Promise<FileNode[]> {
+  //   // Check if it's a Git repository
+  //   const isGitRepo = isGitRepository(fileList);
+  //   if (!isGitRepo) {
+  //     throw new Error('Not a Git repository');
+  //   }
+    
+  //   // Parse gitignore patterns
+  //   const ignorePatterns = await parseGitignore(fileList);
+    
+  //   // Create a map to store all directories by their path
+  //   const dirMap: { [path: string]: FileNode } = {};
+    
+  //   // Function to get or create a directory node
+  //   const getOrCreateDir = (path: string, name: string): FileNode => {
+  //     if (!dirMap[path]) {
+  //       dirMap[path] = {
+  //         name,
+  //         path,
+  //         type: 'directory',
+  //         children: [],
+  //         selected: false
+  //       };
+  //     }
+  //     return dirMap[path];
+  //   };
+    
+  //   // Convert FileList to array and sort by path
+  //   const files = Array.from(fileList).sort((a, b) => 
+  //     a.webkitRelativePath.localeCompare(b.webkitRelativePath)
+  //   );
+    
+  //   // First pass: create directory structure
+  //   for (const file of files) {
+  //     const pathParts = file.webkitRelativePath.split('/');
+  //     // Skip the root directory name (first part)
+  //     pathParts.shift();
+      
+  //     // Build directory tree
+  //     let currentPath = '';
+  //     for (let i = 0; i < pathParts.length - 1; i++) {
+  //       const part = pathParts[i];
+  //       const parentPath = currentPath;
+  //       currentPath = currentPath ? `${currentPath}/${part}` : part;
+        
+  //       // Skip if this path should be ignored
+  //       if (shouldIgnore(currentPath, ignorePatterns)) {
+  //         break;
+  //       }
+        
+  //       // Create directory node
+  //       const dirNode = getOrCreateDir(currentPath, part);
+        
+  //       // Link to parent directory
+  //       if (parentPath) {
+  //         const parentNode = dirMap[parentPath];
+  //         if (parentNode && !parentNode.children?.some(child => child.path === currentPath)) {
+  //           parentNode.children?.push(dirNode);
+  //         }
+  //       }
+  //     }
+  //   }
+    
+  //   // Second pass: add files to directories
+  //   for (const file of files) {
+  //     const pathParts = file.webkitRelativePath.split('/');
+  //     // Skip the root directory name (first part)
+  //     pathParts.shift();
+      
+  //     const fileName = pathParts[pathParts.length - 1];
+  //     const parentPath = pathParts.slice(0, -1).join('/');
+  //     const filePath = pathParts.join('/');
+      
+  //     // Skip if this file should be ignored
+  //     if (shouldIgnore(filePath, ignorePatterns)) {
+  //       continue;
+  //     }
+      
+  //     // Only process text files
+  //     if (isFileTypeSupported(fileName)) {
+  //       const content = await readFileContent(file);
+        
+  //       // Create file node
+  //       const fileNode: FileNode = {
+  //         name: fileName,
+  //         path: filePath,
+  //         type: 'file',
+  //         content,
+  //         selected: false
+  //       };
+        
+  //       // Add to parent directory
+  //       if (parentPath && dirMap[parentPath]) {
+  //         dirMap[parentPath].children?.push(fileNode);
+  //       } else if (!parentPath) {
+  //         // It's a root-level file, add it to dirMap
+  //         dirMap[fileName] = fileNode;
+  //       }
+  //     }
+  //   }
+    
+  //   // Return only root-level nodes
+  //   return Object.values(dirMap).filter(node => {
+  //     const pathParts = node.path.split('/');
+  //     return pathParts.length === 1;
+  //   });
+  // }
   export async function processDirectory(fileList: FileList): Promise<FileNode[]> {
-    // Check if it's a Git repository
-    const isGitRepo = isGitRepository(fileList);
-    if (!isGitRepo) {
+    // Verify it's a Git repository
+    if (!isGitRepository(fileList)) {
       throw new Error('Not a Git repository');
     }
     
-    // Parse gitignore patterns
+    // Get ignore patterns
     const ignorePatterns = await parseGitignore(fileList);
     
-    // Create a map to store all directories by their path
-    const dirMap: { [path: string]: FileNode } = {};
-    
-    // Function to get or create a directory node
-    const getOrCreateDir = (path: string, name: string): FileNode => {
-      if (!dirMap[path]) {
-        dirMap[path] = {
-          name,
-          path,
-          type: 'directory',
-          children: [],
-          selected: false
-        };
-      }
-      return dirMap[path];
-    };
-    
-    // Convert FileList to array and sort by path
+    // Create sorted array of files
     const files = Array.from(fileList).sort((a, b) => 
       a.webkitRelativePath.localeCompare(b.webkitRelativePath)
     );
     
-    // First pass: create directory structure
+    // Extract root directory name
+    const rootName = files[0]?.webkitRelativePath.split('/')[0] || '';
+    
+    // Build path to file map for quick lookups
+    const fileMap = new Map<string, File>();
     for (const file of files) {
-      const pathParts = file.webkitRelativePath.split('/');
-      // Skip the root directory name (first part)
-      pathParts.shift();
+      // Remove root dir and get relative path
+      const path = file.webkitRelativePath.split('/').slice(1).join('/');
+      if (path) fileMap.set(path, file);
+    }
+    
+    // Recursive function to build directory structure
+    async function buildTree(path: string = '', depth: number = 0): Promise<FileNode[]> {
+      const result: FileNode[] = [];
+      const pathPrefix = path ? path + '/' : '';
       
-      // Build directory tree
-      let currentPath = '';
-      for (let i = 0; i < pathParts.length - 1; i++) {
-        const part = pathParts[i];
-        const parentPath = currentPath;
-        currentPath = currentPath ? `${currentPath}/${part}` : part;
+      // Find all immediate children (files and directories)
+      const children = new Set<string>();
+      
+      for (const filePath of fileMap.keys()) {
+        if (!filePath.startsWith(pathPrefix)) continue;
         
-        // Skip if this path should be ignored
-        if (shouldIgnore(currentPath, ignorePatterns)) {
-          break;
+        const remainingPath = filePath.slice(pathPrefix.length);
+        const firstSegment = remainingPath.split('/')[0];
+        
+        if (firstSegment) {
+          children.add(firstSegment);
+        }
+      }
+      
+      // Process each child
+      for (const child of children) {
+        const childPath = path ? `${path}/${child}` : child;
+        
+        // Skip if should be ignored
+        if (shouldIgnore(childPath, ignorePatterns)) {
+          continue;
         }
         
-        // Create directory node
-        const dirNode = getOrCreateDir(currentPath, part);
+        // Check if it's a file or directory
+        const isFile = !Array.from(fileMap.keys()).some(
+          p => p.startsWith(`${childPath}/`)
+        );
         
-        // Link to parent directory
-        if (parentPath) {
-          const parentNode = dirMap[parentPath];
-          if (parentNode && !parentNode.children?.some(child => child.path === currentPath)) {
-            parentNode.children?.push(dirNode);
+        if (isFile) {
+          // It's a file
+          const file = fileMap.get(childPath);
+          if (file && isFileTypeSupported(child)) {
+            const content = await readFileContent(file);
+            result.push({
+              name: child,
+              path: childPath,
+              type: 'file',
+              content,
+              selected: false
+            });
           }
+        } else {
+          // It's a directory - recurse
+          const subTree = await buildTree(childPath, depth + 1);
+          result.push({
+            name: child,
+            path: childPath,
+            type: 'directory',
+            children: subTree,
+            selected: false
+          });
         }
       }
+      
+      return result;
     }
     
-    // Second pass: add files to directories
-    for (const file of files) {
-      const pathParts = file.webkitRelativePath.split('/');
-      // Skip the root directory name (first part)
-      pathParts.shift();
-      
-      const fileName = pathParts[pathParts.length - 1];
-      const parentPath = pathParts.slice(0, -1).join('/');
-      const filePath = pathParts.join('/');
-      
-      // Skip if this file should be ignored
-      if (shouldIgnore(filePath, ignorePatterns)) {
-        continue;
-      }
-      
-      // Only process text files
-      if (isFileTypeSupported(fileName)) {
-        const content = await readFileContent(file);
-        
-        // Create file node
-        const fileNode: FileNode = {
-          name: fileName,
-          path: filePath,
-          type: 'file',
-          content,
-          selected: false
-        };
-        
-        // Add to parent directory
-        if (parentPath && dirMap[parentPath]) {
-          dirMap[parentPath].children?.push(fileNode);
-        } else if (!parentPath) {
-          // It's a root-level file, add it to dirMap
-          dirMap[fileName] = fileNode;
-        }
-      }
-    }
-    
-    // Return only root-level nodes
-    return Object.values(dirMap).filter(node => {
-      const pathParts = node.path.split('/');
-      return pathParts.length === 1;
-    });
+    // Start the recursive build
+    return buildTree();
   }
-
   
   function isFileTypeSupported(fileName: string): boolean {
     const textFileExtensions = [
