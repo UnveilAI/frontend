@@ -18,15 +18,15 @@ export function FileUpload({ onUpload }: { onUpload: (files: FileNode[]) => void
 
     try {
       // Check if it's a Git repository
-      if (!isGitRepository(files)) {
-        toast({
-          title: "Not a Git repository",
-          description: "The uploaded folder is not a Git repository. Please upload a valid Git repository.",
-          variant: "destructive",
-        })
-        setIsLoading(false)
-        return
-      }
+      // if (!isGitRepository(files)) {
+      //   toast({
+      //     title: "Not a Git repository",
+      //     description: "The uploaded folder is not a Git repository. Please upload a valid Git repository.",
+      //     variant: "destructive",
+      //   })
+      //   setIsLoading(false)
+      //   return
+      // }
 
       // Process the directory
       const fileTree = await processDirectory(files)
