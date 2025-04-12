@@ -286,7 +286,8 @@ export function isGitRepository(fileList: FileList): boolean {
         if (isFile) {
           // It's a file
           const file = fileMap.get(childPath);
-          if (file && isFileTypeSupported(child)) {
+          // if (file && isFileTypeSupported(child)) {
+          if (file) {
             const content = await readFileContent(file);
             result.push({
               name: child,
