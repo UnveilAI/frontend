@@ -19,7 +19,7 @@ export default function Home() {
   const [files, setFiles] = React.useState<FileNode[]>([])
   const [selectedFile, setSelectedFile] = React.useState<FileNode | null>(null)
   const [isShareModalOpen, setShareModalOpen] = React.useState(false)
-  const [showWelcome, setShowWelcome] = React.useState(false)
+  const [showWelcome, setShowWelcome] = React.useState(true)
 
   const LOCAL_STORAGE_FILES_KEY = 'uploadedFiles'
   const LOCAL_STORAGE_SELECTED_KEY = 'selectedFilePath'
