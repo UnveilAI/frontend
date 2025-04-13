@@ -122,137 +122,155 @@ export function ChatInterface({ selectedFiles }: ChatInterfaceProps) {
     }
   }
 
-  // Modified to call Gemini API for code explanation with multiple files
-  const handleExplainCode = async () => {
-    if (selectedFiles.length === 0) return
-    try {
-      // Add a user message showing what's being explained
-      setMessages(prev => [...prev, {
-        role: 'user',
-        content: `Explain this codebase`
-      }])
+  // Add this helper function to combine multiple file contents
+const combineSelectedFiles = (files) => {
+  return files.map(file => {
+    // Create a header for each file to identify it in the combined content
+    const fileHeader = `\n\n// FILE: ${file.path}\n`;
+    return fileHeader + (file.content || '');
+  }).join('\n');
+};
+
+// Update the handleExplainCode function
+const handleExplainCode = async () => {
+  if (selectedFiles.length === 0) return
+  try {
+    // Add a user message showing what's being explained
+    setMessages(prev => [...prev, {
+      role: 'user',
+      content: `Explain this codebase`
+    }])
+
+    // Show loading message
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: "Analyzing codebase..."
+    }])
+
+    // Combine all selected files instead of just taking the first one
+    const combinedContent = combineSelectedFiles(selectedFiles);
+    if (!combinedContent) return;
+    
+    // Using the repositoryId if available
+    const repositoryId = "current"; // Replace with actual repository ID if available
+
+    // Call the Gemini API with combined content
+    const result = await geminiApi.explainCode(combinedContent)
+
+    // Remove the loading message
+    setMessages(prev => prev.slice(0, -1))
+
+    // Parse the response if it's a JSON string
+    const parsedResponse = parseGeminiResponse(result.explanation)
+
+    // Format the response into a readable message
+    const explanationMessage = formatGeminiResponse(parsedResponse)
+
+    setMessages(prev => [...prev, explanationMessage])
+
+    // Auto-scroll after adding new message
+    setTimeout(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+      }
+    }, 100)
+  } catch (error) {
+    console.error("Error explaining code:", error)
+    // Replace the loading message with an error message
+    setMessages(prev => {
+      const newMessages = [...prev]
+      // If there's a loading message, replace it, otherwise add new error message
+      if (newMessages[newMessages.length - 1].content === "Analyzing codebase...") {
+        newMessages[newMessages.length - 1] = {
+          role: 'assistant',
+          content: "Sorry, I encountered an error while trying to explain this codebase."
+        }
+        return newMessages
+      } else {
+        return [...prev, {
+          role: 'assistant',
+          content: "Sorry, I encountered an error while trying to explain this codebase."
+        }]
+      }
+    })
+  }
+}
+
+// Update the handleSend function
+const handleSend = async () => {
+  if (!input.trim()) return
+
+  // Add user message
+  const userMessage: Message = {
+    role: 'user',
+    content: input
+  }
+
+  setMessages(prev => [...prev, userMessage])
+  setInput('')
+
+  // Auto-scroll after adding user message
+  setTimeout(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+  }, 100)
+
+  try {
+    // Send message to the backend if files are selected
+    if (selectedFiles.length > 0) {
+      const repositoryId = "current" // You'd need to get the actual repository ID
 
       // Show loading message
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: "Analyzing codebase..."
+        content: "Thinking..."
       }])
 
-      // For simplicity, explain the first selected file
-      const fileToExplain = selectedFiles[0]
-      if (!fileToExplain.content) return
-      
-      // Using the repositoryId if available
-      const repositoryId = "current"; // Replace with actual repository ID if available
+      // Combine all selected files instead of just taking the first one
+      const combinedContent = combineSelectedFiles(selectedFiles);
+      if (!combinedContent) {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: "No valid content found in the selected files."
+        }])
+        return;
+      }
 
-      // Call the Gemini API
-      const result = await geminiApi.explainCode(fileToExplain.content)
+      // Call the backend API with combined content
+      const response = await geminiApi.explainCode(combinedContent, input)
 
       // Remove the loading message
       setMessages(prev => prev.slice(0, -1))
 
-      // Parse the response if it's a JSON string
-      const parsedResponse = parseGeminiResponse(result.explanation)
-
-      // Format the response into a readable message
+      // Parse and format the response
+      const parsedResponse = parseGeminiResponse(response.explanation)
       const explanationMessage = formatGeminiResponse(parsedResponse)
 
+      // Add the response message
       setMessages(prev => [...prev, explanationMessage])
-
-      // Auto-scroll after adding new message
-      setTimeout(() => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-        }
-      }, 100)
-    } catch (error) {
-      console.error("Error explaining code:", error)
-      // Replace the loading message with an error message
-      setMessages(prev => {
-        const newMessages = [...prev]
-        // If there's a loading message, replace it, otherwise add new error message
-        if (newMessages[newMessages.length - 1].content === "Analyzing codebase...") {
-          newMessages[newMessages.length - 1] = {
-            role: 'assistant',
-            content: "Sorry, I encountered an error while trying to explain this codebase."
-          }
-          return newMessages
-        } else {
-          return [...prev, {
-            role: 'assistant',
-            content: "Sorry, I encountered an error while trying to explain this codebase."
-          }]
-        }
-      })
-    }
-  }
-
-  const handleSend = async () => {
-    if (!input.trim()) return
-
-    // Add user message
-    const userMessage: Message = {
-      role: 'user',
-      content: input
-    }
-
-    setMessages(prev => [...prev, userMessage])
-    setInput('')
-
-    // Auto-scroll after adding user message
-    setTimeout(() => {
-      if (scrollRef.current) {
-        scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-      }
-    }, 100)
-
-    try {
-      // Send message to the backend if files are selected
-      if (selectedFiles.length > 0 && selectedFiles[0].content) {
-        const repositoryId = "current" // You'd need to get the actual repository ID
-
-        // Show loading message
-        setMessages(prev => [...prev, {
-          role: 'assistant',
-          content: "Thinking..."
-        }])
-
-        // Call the backend API to get a response using the first selected file
-        // This uses the updated geminiApi.explainCode that accepts a question parameter
-        const response = await geminiApi.explainCode(selectedFiles[0].content, input)
-
-        // Remove the loading message
-        setMessages(prev => prev.slice(0, -1))
-
-        // Parse and format the response
-        const parsedResponse = parseGeminiResponse(response.explanation)
-        const explanationMessage = formatGeminiResponse(parsedResponse)
-
-        // Add the response message
-        setMessages(prev => [...prev, explanationMessage])
-      } else {
-        // If no file is selected, provide a generic response
-        setMessages(prev => [...prev, {
-          role: 'assistant',
-          content: "Please select a file first for me to analyze and answer questions about."
-        }])
-      }
-    } catch (error) {
-      console.error("Error sending message:", error)
+    } else {
+      // If no file is selected, provide a generic response
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: "Sorry, I encountered an error while processing your question."
+        content: "Please select a file first for me to analyze and answer questions about."
       }])
     }
-
-    // Auto-scroll after adding response
-    setTimeout(() => {
-      if (scrollRef.current) {
-        scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-      }
-    }, 100)
+  } catch (error) {
+    console.error("Error sending message:", error)
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: "Sorry, I encountered an error while processing your question."
+    }])
   }
 
+  // Auto-scroll after adding response
+  setTimeout(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+  }, 100)
+}
   const getLanguage = (fileName: string): string => {
     const ext = fileName.split('.').pop()?.toLowerCase()
     switch (ext) {
