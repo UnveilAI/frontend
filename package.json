@@ -43,6 +43,7 @@
     "@types/react-dom": "18.2.7",
     "adm-zip": "^0.5.16",
     "autoprefixer": "10.4.15",
+    "axios": "^1.8.4",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
@@ -53,11 +54,11 @@
     "input-otp": "^1.2.4",
     "jszip": "^3.10.1",
     "lucide-react": "^0.446.0",
-    "next": "13.5.1",
+    "next": "^15.3.1-canary.7",
     "next-themes": "^0.3.0",
     "p-limit": "^6.2.0",
     "phosphor-react": "^1.4.1",
-    "postcss": "8.4.30",
+    "postcss": "^8.5.3",
     "react": "18.2.0",
     "react-day-picker": "^8.10.1",
     "react-dom": "18.2.0",
@@ -73,5 +74,8 @@
     "typescript": "5.2.2",
     "vaul": "^0.9.9",
     "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/react-syntax-highlighter": "^15.5.13"
   }
 }
