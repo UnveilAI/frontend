@@ -10,6 +10,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import ReactMarkdown from 'react-markdown'
 import { geminiApi } from '@/api'  // Added import for Gemini integration
+import { safeJsonParse } from '@/lib/json-utils' // Import our enhanced JSON parser
 
 interface CodeSnippet {
   language: string
@@ -56,28 +57,20 @@ export function ChatInterface({ selectedFile }: ChatInterfaceProps) {
 
   // Parse JSON response if it's a string
   const parseGeminiResponse = (response: string): any => {
-    try {
-      // First, check if the response contains JSON wrapped in code blocks
-      const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/)
-      if (jsonMatch && jsonMatch[1]) {
-        return JSON.parse(jsonMatch[1])
-      }
-
-      // Then check if the entire response is JSON
-      if (response.trim().startsWith('{') && response.trim().endsWith('}')) {
-        return JSON.parse(response)
-      }
-
-      // If response is just text
-      return { text_response: response }
-    } catch (error) {
-      console.error("Error parsing Gemini response:", error)
-      return { text_response: response }
-    }
+    // Use our enhanced JSON parser to handle potentially malformed JSON
+    return safeJsonParse(response);
   }
 
   // Format the Gemini response into a readable message
   const formatGeminiResponse = (responseData: any): Message => {
+    // Check if there was a parse error and handle it appropriately
+    if (responseData.parse_error) {
+      return {
+        role: 'assistant',
+        content: responseData.text_response
+      };
+    }
+
     // For the overview-style responses (with overview, key_components, etc.)
     if (responseData.overview) {
       let formattedContent = `**Overview:**\n${responseData.overview}\n\n`
