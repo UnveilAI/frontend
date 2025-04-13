@@ -494,9 +494,7 @@ export const geminiApi = {
             const startTime = Date.now();
 
             // Include the question in the request if provided
-            const payload = question
-                ? { code, question }
-                : { code };
+            const payload = { code };
 
             const response = await api.post<GeminiExplanation>(endpoint, payload);
 
@@ -507,6 +505,27 @@ export const geminiApi = {
             throw error;
         }
     },
+    
+    answerQuestion: async (question: string, code_context?: string, repository_info?: any): Promise<{ answer: string }> => {
+        try {
+            const endpoint = `/api/gemini/answer`;
+            const startTime = Date.now();
+            
+            const payload = {
+                question,
+                code_context,
+                repository_info
+            };
+            
+            const response = await api.post<{ answer: string }>(endpoint, payload);
+            
+            logger.success('post', endpoint, response, startTime);
+            return response.data;
+        } catch (error) {
+            logger.error('post', `/api/gemini/answer`, error as AxiosError);
+            throw error;
+        }
+    }
 };
 
 export const chatWithCode = async (
