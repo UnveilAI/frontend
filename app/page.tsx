@@ -17,12 +17,12 @@ import ImportGithubRepo from "@/components/ImportGithubRepo"
 
 export default function Home() {
   const [files, setFiles] = React.useState<FileNode[]>([])
-  const [selectedFile, setSelectedFile] = React.useState<FileNode | null>(null)
+  const [selectedFiles, setSelectedFiles] = React.useState<FileNode[]>([])
   const [isShareModalOpen, setShareModalOpen] = React.useState(false)
   const [showWelcome, setShowWelcome] = React.useState(true)
 
   const LOCAL_STORAGE_FILES_KEY = 'uploadedFiles'
-  const LOCAL_STORAGE_SELECTED_KEY = 'selectedFilePath'
+  const LOCAL_STORAGE_SELECTED_FILES_KEY = 'selectedFiles'
   const LOCAL_STORAGE_WELCOME_KEY = 'hasSeenWelcome'
 
   const handleFileSelect = (path: string) => {
@@ -56,13 +56,23 @@ export default function Home() {
     localStorage.removeItem(LOCAL_STORAGE_FILES_KEY)
     localStorage.removeItem(LOCAL_STORAGE_SELECTED_KEY)
   }
-
   const handleToggleSelect = (node: FileNode, selected: boolean) => {
+    // Update the file tree selection state
     const updateNodeSelection = (nodes: FileNode[]): FileNode[] => {
       return nodes.map(n => {
         if (n === node) {
+          // For directory node, recursively update all children
+          if (n.type === 'directory' && n.children) {
+            return {
+              ...n,
+              selected,
+              children: updateAllChildrenSelection(n.children, selected)
+            }
+          }
+          // For file node, just update this node
           return { ...n, selected }
         }
+        
         if (n.children) {
           return {
             ...n,
@@ -72,39 +82,57 @@ export default function Home() {
         return n
       })
     }
-
+  
+    // Helper function to recursively update all children's selection state
+    const updateAllChildrenSelection = (nodes: FileNode[], selected: boolean): FileNode[] => {
+      return nodes.map(n => ({
+        ...n,
+        selected,
+        children: n.children ? updateAllChildrenSelection(n.children, selected) : undefined
+      }))
+    }
+  
     const updated = updateNodeSelection(files)
     setFiles(updated)
+    
+    // Update the selectedFiles array based on new selection states
+    const getAllSelectedFiles = (nodes: FileNode[]): FileNode[] => {
+      let selected: FileNode[] = [];
+      
+      for (const n of nodes) {
+        if (n.selected && n.type === 'file') {
+          selected.push(n);
+        }
+        
+        if (n.children) {
+          selected = [...selected, ...getAllSelectedFiles(n.children)];
+        }
+      }
+      
+      return selected;
+    }
+    
+    const newSelectedFiles = getAllSelectedFiles(updated);
+    setSelectedFiles(newSelectedFiles);
+    
     localStorage.setItem(LOCAL_STORAGE_FILES_KEY, JSON.stringify(updated))
+    localStorage.setItem(LOCAL_STORAGE_SELECTED_FILES_KEY, JSON.stringify(newSelectedFiles))
   }
-
   useEffect(() => {
     const savedFiles = localStorage.getItem(LOCAL_STORAGE_FILES_KEY)
-    const savedPath = localStorage.getItem(LOCAL_STORAGE_SELECTED_KEY)
+    const savedSelectedFiles = localStorage.getItem(LOCAL_STORAGE_SELECTED_FILES_KEY)
     const hasSeenWelcome = localStorage.getItem(LOCAL_STORAGE_WELCOME_KEY)
-
+  
     if (!hasSeenWelcome) {
       setShowWelcome(true)
     }
-
+  
     if (savedFiles) {
       const parsed: FileNode[] = JSON.parse(savedFiles)
       setFiles(parsed)
-
-      if (savedPath) {
-        const findFile = (nodes: FileNode[]): FileNode | null => {
-          for (const node of nodes) {
-            if (node.path === savedPath && node.type === 'file') return node
-            if (node.children) {
-              const result = findFile(node.children)
-              if (result) return result
-            }
-          }
-          return null
-        }
-
-        const file = findFile(parsed)
-        if (file) setSelectedFile(file)
+  
+      if (savedSelectedFiles) {
+        setSelectedFiles(JSON.parse(savedSelectedFiles))
       }
     }
   }, [])
@@ -171,7 +199,7 @@ export default function Home() {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          <ChatInterface selectedFile={selectedFile} />
+          <ChatInterface selectedFiles={selectedFiles} />
         </div>
       </div>
 
