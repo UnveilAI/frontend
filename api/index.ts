@@ -488,18 +488,44 @@ explanation: string;
 }
 
 export const geminiApi = {
-explainCode: async (code: string): Promise<GeminiExplanation> => {
-try {
-const endpoint = `/api/gemini/explain`;
-const startTime = Date.now();
-const response = await api.post<GeminiExplanation>(endpoint, { code });
-logger.success('post', endpoint, response, startTime);
-return response.data;
-} catch (error) {
-logger.error('post', `/api/gemini/explain`, error as AxiosError);
-throw error;
-}
-},
+    explainCode: async (code: string | undefined, question?: string): Promise<GeminiExplanation> => {
+        try {
+            const endpoint = `/api/gemini/explain`;
+            const startTime = Date.now();
+
+            // Include the question in the request if provided
+            const payload = question
+                ? { code, question }
+                : { code };
+
+            const response = await api.post<GeminiExplanation>(endpoint, payload);
+
+            logger.success('post', endpoint, response, startTime);
+            return response.data;
+        } catch (error) {
+            logger.error('post', `/api/gemini/explain`, error as AxiosError);
+            throw error;
+        }
+    },
+};
+
+export const chatWithCode = async (
+    repositoryId: string,
+    question: string,
+    filePath?: string
+): Promise<Question> => {
+    try {
+        const questionData: QuestionCreate = {
+            repository_id: repositoryId,
+            question: question,
+            context: filePath // The file path to provide context
+        };
+
+        return await questionApi.askQuestion(questionData);
+    } catch (error) {
+        console.error("Error asking question:", error);
+        throw error;
+    }
 };
 
 // Also add geminiApi to the default export if needed
@@ -508,5 +534,6 @@ repository: repositoryApi,
 question: questionApi,
 audio: audioApi,
 gemini: geminiApi,
-debug: apiDebug
+debug: apiDebug,
+chat: chatWithCode,
 };
