@@ -11,12 +11,15 @@ import { Button } from '@/components/ui/button'
 import { ShareNetwork } from 'phosphor-react'
 import { ShareOptionsModal } from '@/components/share-options-modal'
 import { WelcomeModal } from '@/components/welcome-modal'
+import ImportGithubRepo from "@/components/ImportGithubRepo" 
+
+
 
 export default function Home() {
   const [files, setFiles] = React.useState<FileNode[]>([])
   const [selectedFile, setSelectedFile] = React.useState<FileNode | null>(null)
   const [isShareModalOpen, setShareModalOpen] = React.useState(false)
-  const [showWelcome, setShowWelcome] = React.useState(false)
+  const [showWelcome, setShowWelcome] = React.useState(true)
 
   const LOCAL_STORAGE_FILES_KEY = 'uploadedFiles'
   const LOCAL_STORAGE_SELECTED_KEY = 'selectedFilePath'
@@ -129,13 +132,16 @@ export default function Home() {
 
       <div className="flex flex-1 overflow-hidden">
         <div className="w-80 border-r bg-card">
-          <FileUpload onUpload={handleUpload} />
-          <Separator />
-          <FileTree
-            files={files}
-            onSelect={handleFileSelect}
-            onToggleSelect={handleToggleSelect}
-          />
+        <FileUpload onUpload={handleUpload} />
+        <Separator />
+        <ImportGithubRepo onUpload={handleUpload} />
+        <Separator />
+        <FileTree
+          files={files}
+          onSelect={handleFileSelect}
+          onToggleSelect={handleToggleSelect}
+        />
+
         </div>
 
         <div className="flex-1 overflow-y-auto">
