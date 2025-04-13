@@ -131,8 +131,6 @@ const combineSelectedFiles = (files) => {
     return fileHeader + (file.content || '');
   }).join('\n');
 };
-
-// Update the handleExplainCode function
 const handleExplainCode = async () => {
   if (selectedFiles.length === 0) return
   try {
@@ -148,14 +146,11 @@ const handleExplainCode = async () => {
       content: "Analyzing codebase..."
     }])
 
-    // Combine all selected files instead of just taking the first one
+    // Combine all selected files
     const combinedContent = combineSelectedFiles(selectedFiles);
     if (!combinedContent) return;
     
-    // Using the repositoryId if available
-    const repositoryId = "current"; // Replace with actual repository ID if available
-
-    // Call the Gemini API with combined content
+    // Call the Gemini API for explanation
     const result = await geminiApi.explainCode(combinedContent)
 
     // Remove the loading message
@@ -238,14 +233,24 @@ const handleSend = async () => {
         return;
       }
 
-      // Call the backend API with combined content
-      const response = await geminiApi.explainCode(combinedContent, input)
+      // Create repository info if needed
+      const repositoryInfo = {
+        name: "Current Files",
+        description: `${selectedFiles.length} files selected`,
+      };
+
+      // Call the answer endpoint with the question and code context
+      const response = await geminiApi.answerQuestion(
+        input,
+        combinedContent,
+        repositoryInfo
+      );
 
       // Remove the loading message
       setMessages(prev => prev.slice(0, -1))
 
       // Parse and format the response
-      const parsedResponse = parseGeminiResponse(response.explanation)
+      const parsedResponse = parseGeminiResponse(response.answer)
       const explanationMessage = formatGeminiResponse(parsedResponse)
 
       // Add the response message
@@ -441,26 +446,23 @@ const handleSend = async () => {
         ))}
       </ScrollArea>
   
-      <div className="p-4 border-t flex flex-col gap-2">
-        <div className="flex gap-2">
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Ask about your code..."
-            className="flex-1"
-          />
-          <Button onClick={handleSend}>
-            <SendIcon className="h-4 w-4" />
-          </Button>
-        </div>
-        {/* Explain Code button */}
-        <div className="flex justify-end">
-          <Button onClick={handleExplainCode} disabled={selectedFiles.length === 0}>
-            Explain Code
-          </Button>
-        </div>
-      </div>
+      <div className="p-4 border-t">
+  <div className="flex gap-2">
+    <Input
+      value={input}
+      onChange={(e) => setInput(e.target.value)}
+      onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+      placeholder="Ask about your code..."
+      className="flex-1"
+    />
+    <Button onClick={handleSend}>
+      <SendIcon className="h-4 w-4" />
+    </Button>
+    <Button onClick={handleExplainCode} disabled={selectedFiles.length === 0}>
+      Explain Codebase
+    </Button>
+  </div>
+</div>
     </div>
   )
 }
