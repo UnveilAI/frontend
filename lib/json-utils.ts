@@ -8,7 +8,8 @@
 export const safeJsonParse = (jsonString: string): any => {
     // First, try standard JSON parsing
     try {
-        return JSON.parse(jsonString);
+        const initialParse = JSON.parse(jsonString);
+        return JSON.parse(initialParse);
     } catch (error) {
         console.log("Standard JSON parsing failed, trying repair strategies");
 

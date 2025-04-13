@@ -488,7 +488,7 @@ explanation: string;
 }
 
 export const geminiApi = {
-    explainCode: async (code: string, question?: string): Promise<GeminiExplanation> => {
+    explainCode: async (code: string | undefined, question?: string): Promise<GeminiExplanation> => {
         try {
             const endpoint = `/api/gemini/explain`;
             const startTime = Date.now();
