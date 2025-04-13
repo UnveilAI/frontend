@@ -35,6 +35,65 @@ interface ApiErrorEventDetail extends ApiRequestEventDetail {
     duration: number | null;
 }
 
+// Bland AI service types
+interface PhoneCallRequest {
+    phone_number: string;
+    knowledge_base_name?: string;
+    knowledge_base_description?: string;
+    knowledge_base_text?: string;
+    knowledge_base_id?: string;
+    call_instructions?: string;
+    voice_id?: string;
+    background_track?: string;
+    first_sentence?: string;
+    wait_for_greeting?: boolean;
+    block_interruptions?: boolean;
+    language?: string;
+    record?: boolean;
+}
+
+interface PhoneCallResponse {
+    call_id: string;
+    status: string;
+    phone_number: string;
+    knowledge_base_id?: string;
+}
+
+// Bland AI service
+export const blandApi = {
+    makePhoneCall: async (request: PhoneCallRequest): Promise<PhoneCallResponse> => {
+        try {
+            const endpoint = '/api/phone-calls';
+            logger.request('post', endpoint, request);
+            const startTime = Date.now();
+
+            const response = await api.post<PhoneCallResponse>(endpoint, request);
+
+            logger.success('post', endpoint, response, startTime);
+            return response.data;
+        } catch (error) {
+            logger.error('post', '/api/phone-calls', error as AxiosError);
+            throw error;
+        }
+    },
+
+    getCallStatus: async (callId: string): Promise<any> => {
+        try {
+            const endpoint = `/api/phone-calls/${callId}`;
+            logger.request('get', endpoint);
+            const startTime = Date.now();
+
+            const response = await api.get(endpoint);
+
+            logger.success('get', endpoint, response, startTime);
+            return response.data;
+        } catch (error) {
+            logger.error('get', `/api/phone-calls/${callId}`, error as AxiosError);
+            throw error;
+        }
+    }
+};
+
 // Event dispatcher
 const dispatchApiEvent = <T extends ApiRequestEventDetail | ApiResponseEventDetail | ApiErrorEventDetail>(
     eventName: string,
@@ -533,6 +592,7 @@ export default {
 repository: repositoryApi,
 question: questionApi,
 audio: audioApi,
+bland: blandApi,
 gemini: geminiApi,
 debug: apiDebug,
 chat: chatWithCode,
