@@ -1,12 +1,14 @@
-import axios, { AxiosInstance, AxiosResponse, AxiosError, AxiosRequestConfig } from 'axios';
+import axios, { AxiosInstance, AxiosResponse, AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const DEBUG = process.env.NEXT_PUBLIC_API_DEBUG === 'true';
 
 // Custom axios config with metadata
 interface AxiosRequestConfigWithMetadata extends AxiosRequestConfig {
+    method?: string;
+    url?: string;
     metadata?: {
-        startTime: number;
+      startTime: number;
     };
 }
 
@@ -100,26 +102,36 @@ const api: AxiosInstance = axios.create({
 });
 
 // Add request interceptor for logging
-// @ts-ignore
 api.interceptors.request.use(
-    (config: AxiosRequestConfig): AxiosRequestConfig => {
-    const configWithMetadata = config as AxiosRequestConfigWithMetadata;
+(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
+    // Ensure headers is defined to avoid type issues with undefined.
+    config.headers = config.headers || {};
+
+    // Cast config to include metadata property.
+    const configWithMetadata = config as InternalAxiosRequestConfig & {
+    metadata: { startTime: number };
+    };
+
     const startTime = Date.now();
     configWithMetadata.metadata = { startTime };
 
-    logger.request(config.method || 'unknown', config.url || 'unknown', config.data || config.params);
+    logger.request(
+    config.method || 'unknown',
+    config.url || 'unknown',
+    config.data || config.params
+    );
 
     // Dispatch request event
     dispatchApiEvent('api-request', {
-        method: config.method || 'unknown',
-        url: config.url || 'unknown',
-        data: config.data || config.params,
-        timestamp: new Date().toISOString()
+    method: config.method || 'unknown',
+    url: config.url || 'unknown',
+    data: config.data || config.params,
+    timestamp: new Date().toISOString(),
     });
 
     return configWithMetadata;
 },
-    (error: AxiosError): Promise<AxiosError> => {
+(error: AxiosError): Promise<AxiosError> => {
     logger.error('request', 'interceptor', error);
     return Promise.reject(error);
 }
@@ -469,9 +481,32 @@ isDebugEnabled: (): boolean => {
 }
 };
 
+// Add after the Audio API block (or at an appropriate location within the file)
+// Gemini API types and methods for code explanation
+interface GeminiExplanation {
+explanation: string;
+}
+
+export const geminiApi = {
+explainCode: async (code: string): Promise<GeminiExplanation> => {
+try {
+const endpoint = `/api/gemini/explain`;
+const startTime = Date.now();
+const response = await api.post<GeminiExplanation>(endpoint, { code });
+logger.success('post', endpoint, response, startTime);
+return response.data;
+} catch (error) {
+logger.error('post', `/api/gemini/explain`, error as AxiosError);
+throw error;
+}
+},
+};
+
+// Also add geminiApi to the default export if needed
 export default {
-    repository: repositoryApi,
-    question: questionApi,
-    audio: audioApi,
-    debug: apiDebug
+repository: repositoryApi,
+question: questionApi,
+audio: audioApi,
+gemini: geminiApi,
+debug: apiDebug
 };
