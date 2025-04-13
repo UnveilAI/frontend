@@ -6,8 +6,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Git Repository Chat',
-  description: 'Chat with your Git repositories',
+  title: 'Unveil AI',
+  description: 'AI in Software Engineering – Upload your repository and get your code explained line by line.',
 };
 
 export default function RootLayout({
