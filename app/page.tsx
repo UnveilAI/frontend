@@ -8,7 +8,7 @@ import { Separator } from '@/components/ui/separator'
 import { FileNode } from '@/lib/file-processing'
 import { Toaster } from '@/components/ui/toaster'
 import { Button } from '@/components/ui/button'
-import { ShareNetwork } from 'phosphor-react'
+import { ShareNetwork, Trash } from 'phosphor-react'
 import { ShareOptionsModal } from '@/components/share-options-modal'
 import { WelcomeModal } from '@/components/welcome-modal'
 import ImportGithubRepo from "@/components/ImportGithubRepo" 
@@ -48,6 +48,13 @@ export default function Home() {
 
   const closeShareModal = () => {
     setShareModalOpen(false)
+  }
+  
+  const clearAllFiles = () => {
+    setFiles([])
+    setSelectedFile(null)
+    localStorage.removeItem(LOCAL_STORAGE_FILES_KEY)
+    localStorage.removeItem(LOCAL_STORAGE_SELECTED_KEY)
   }
 
   const handleToggleSelect = (node: FileNode, selected: boolean) => {
@@ -124,17 +131,36 @@ export default function Home() {
               AI in Software Engineering – Upload your repository and get your code explained line by line.
             </p>
           </div>
-          <Button onClick={handleShare} variant="ghost">
-            <ShareNetwork size={32} />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              className="animate-glow-border flex items-center gap-2 px-4" 
+              variant="ghost" 
+              title="Call Bland AI"
+            >
+              <span className="font-medium">Call Bland</span>
+              <img 
+                src="https://cdn.theorg.com/eb9f3655-a024-4d54-a028-337b508d2aef_thumb.jpg" 
+                alt="Bland AI Logo" 
+                width={32} 
+                height={32} 
+                className="rounded-full"
+              />
+            </Button>
+            <Button onClick={clearAllFiles} variant="ghost" title="Clear all folders">
+              <Trash size={32} />
+            </Button>
+            <Button onClick={handleShare} variant="ghost">
+              <ShareNetwork size={32} />
+            </Button>
+          </div>
         </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
         <div className="w-80 border-r bg-card">
-        <FileUpload onUpload={handleUpload} />
-        <Separator />
         <ImportGithubRepo onUpload={handleUpload} />
+        <Separator />
+        <FileUpload onUpload={handleUpload} />
         <Separator />
         <FileTree
           files={files}
