@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { SendIcon } from 'lucide-react'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -16,7 +18,19 @@ interface Message {
   }
 }
 
-export function ChatInterface() {
+interface FileNode {
+  name: string
+  path: string
+  type: 'file' | 'directory'
+  content?: string
+  children?: FileNode[]
+}
+
+interface ChatInterfaceProps {
+  selectedFile?: FileNode | null
+}
+
+export function ChatInterface({ selectedFile }: ChatInterfaceProps) {
   const [messages, setMessages] = React.useState<Message[]>([])
   const [input, setInput] = React.useState('')
   const scrollRef = React.useRef<HTMLDivElement>(null)
@@ -27,7 +41,6 @@ export function ChatInterface() {
     const newMessages = [
       ...messages,
       { role: 'user', content: input },
-      // Simulated response - replace with actual API call
       {
         role: 'assistant',
         content: 'Here\'s an example response with some code:',
@@ -40,7 +53,6 @@ export function ChatInterface() {
     setMessages(newMessages)
     setInput('')
 
-    // Scroll to bottom
     setTimeout(() => {
       if (scrollRef.current) {
         scrollRef.current.scrollTop = scrollRef.current.scrollHeight
@@ -48,22 +60,67 @@ export function ChatInterface() {
     }, 100)
   }
 
+  const getLanguage = (fileName: string): string => {
+    const ext = fileName.split('.').pop()?.toLowerCase()
+    switch (ext) {
+      case 'py':
+        return 'python'
+      case 'js':
+        return 'javascript'
+      case 'ts':
+        return 'typescript'
+      case 'tsx':
+        return 'tsx'
+      case 'jsx':
+        return 'jsx'
+      case 'json':
+        return 'json'
+      case 'html':
+        return 'html'
+      case 'css':
+        return 'css'
+      case 'md':
+        return 'markdown'
+      default:
+        return 'text'
+    }
+  }
+
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
-      <ScrollArea ref={scrollRef} className="flex-1 p-4">
+      <ScrollArea ref={scrollRef} className="flex-1 p-4 space-y-4">
+        {/* Display selected file content */}
+        {selectedFile && selectedFile.content && (
+          <Card className="mb-4 p-4 bg-muted">
+            <p className="mb-2 font-semibold">{selectedFile.name}</p>
+            <SyntaxHighlighter
+              language={getLanguage(selectedFile.name)}
+              style={vscDarkPlus}
+              wrapLongLines
+              customStyle={{ borderRadius: '0.5rem', padding: '1rem' }}
+            >
+              {selectedFile.content}
+            </SyntaxHighlighter>
+          </Card>
+        )}
+
         {messages.map((message, index) => (
-          <Card key={index} className={`mb-4 p-4 ${
-            message.role === 'assistant' ? 'bg-accent' : 'bg-muted'
-          }`}>
+          <Card key={index} className={`mb-4 p-4 ${message.role === 'assistant' ? 'bg-accent' : 'bg-muted'}`}>
             <p className="mb-2">{message.content}</p>
             {message.code && (
-              <pre className="bg-background p-4 rounded-md overflow-x-auto">
-                <code>{message.code.content}</code>
-              </pre>
+              <SyntaxHighlighter
+                language={message.code.language}
+                style={vscDarkPlus}
+                wrapLongLines
+                customStyle={{ borderRadius: '0.5rem', padding: '1rem' }}
+              >
+                {message.code.content}
+              </SyntaxHighlighter>
             )}
           </Card>
         ))}
       </ScrollArea>
+
       <div className="p-4 border-t">
         <div className="flex gap-2">
           <Input
