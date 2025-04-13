@@ -446,26 +446,23 @@ const handleSend = async () => {
         ))}
       </ScrollArea>
   
-      <div className="p-4 border-t flex flex-col gap-2">
-        <div className="flex gap-2">
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Ask about your code..."
-            className="flex-1"
-          />
-          <Button onClick={handleSend}>
-            <SendIcon className="h-4 w-4" />
-          </Button>
-        </div>
-        {/* Explain Code button */}
-        <div className="flex justify-end">
-          <Button onClick={handleExplainCode} disabled={selectedFiles.length === 0}>
-            Explain Code
-          </Button>
-        </div>
-      </div>
+      <div className="p-4 border-t">
+  <div className="flex gap-2">
+    <Input
+      value={input}
+      onChange={(e) => setInput(e.target.value)}
+      onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+      placeholder="Ask about your code..."
+      className="flex-1"
+    />
+    <Button onClick={handleSend}>
+      <SendIcon className="h-4 w-4" />
+    </Button>
+    <Button onClick={handleExplainCode} disabled={selectedFiles.length === 0}>
+      Explain Codebase
+    </Button>
+  </div>
+</div>
     </div>
   )
 }
