@@ -44,6 +44,11 @@ const FileTreeNode = ({
 
   const handleCheckboxChange = (checked: boolean | 'indeterminate') => {
     onToggleSelect(node, checked === true)
+    
+    // If it's a file and it's being checked, also display it in chat
+    if (node.type === 'file' && checked === true) {
+      onSelect(node.path)
+    }
   }
 
   return (
@@ -86,7 +91,6 @@ const FileTreeNode = ({
     </div>
   )
 }
-
 
 export function FileTree({ files, onSelect, onToggleSelect }: FileTreeProps) {
   return (
