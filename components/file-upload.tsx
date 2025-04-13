@@ -62,6 +62,7 @@ export function FileUpload({ onUpload }: { onUpload: (files: FileNode[]) => void
         type="file"
         className="hidden"
         onChange={handleUpload}
+          // @ts-ignore
         webkitdirectory=""
         directory=""
         multiple
