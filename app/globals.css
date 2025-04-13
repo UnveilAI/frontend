@@ -96,3 +96,8 @@
   animation: glow-border 2s ease-in-out infinite;
   border-radius: 1rem;
 }
+
+.static-glow-border {
+  box-shadow: 0 0 20px #00f6ff, 0 0 30px #00f6ff;
+  border-radius: 1rem;
+}
