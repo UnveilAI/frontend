@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { SendIcon } from 'lucide-react'
+import { ChevronDown, ChevronRight, FileIcon, SendIcon } from 'lucide-react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import ReactMarkdown from 'react-markdown'
@@ -40,20 +40,29 @@ interface FileNode {
   content?: string
   children?: FileNode[]
 }
-
 interface ChatInterfaceProps {
-  selectedFile?: FileNode | null
+  selectedFiles: FileNode[]
 }
 
-export function ChatInterface({ selectedFile }: ChatInterfaceProps) {
+export function ChatInterface({ selectedFiles }: ChatInterfaceProps) {
   const [messages, setMessages] = React.useState<Message[]>([])
   const [input, setInput] = React.useState('')
+  const [expandedFiles, setExpandedFiles] = React.useState<string[]>([])
   const scrollRef = React.useRef<HTMLDivElement>(null)
 
-  // Reset messages when selected file changes
+  // Toggle file expansion in the accordion
+  const toggleFileExpansion = (path: string) => {
+    setExpandedFiles(prev => 
+      prev.includes(path) 
+        ? prev.filter(p => p !== path) 
+        : [...prev, path]
+    )
+  }
+
+  // Reset messages when selected files change
   useEffect(() => {
     setMessages([]);
-  }, [selectedFile]);
+  }, [selectedFiles]);
 
   // Parse JSON response if it's a string
   const parseGeminiResponse = (response: string): any => {
@@ -113,10 +122,9 @@ export function ChatInterface({ selectedFile }: ChatInterfaceProps) {
     }
   }
 
-  // Modified to call Gemini API for code explanation if requested
+  // Modified to call Gemini API for code explanation with multiple files
   const handleExplainCode = async () => {
-    if (!selectedFile) return
-
+    if (selectedFiles.length === 0) return
     try {
       // Add a user message showing what's being explained
       setMessages(prev => [...prev, {
@@ -130,11 +138,15 @@ export function ChatInterface({ selectedFile }: ChatInterfaceProps) {
         content: "Analyzing codebase..."
       }])
 
-      // Using the repositoryId if available - you'll need to get this from props or context
+      // For simplicity, explain the first selected file
+      const fileToExplain = selectedFiles[0]
+      if (!fileToExplain.content) return
+      
+      // Using the repositoryId if available
       const repositoryId = "current"; // Replace with actual repository ID if available
 
       // Call the Gemini API
-      const result = await geminiApi.explainCode(selectedFile.content)
+      const result = await geminiApi.explainCode(fileToExplain.content)
 
       // Remove the loading message
       setMessages(prev => prev.slice(0, -1))
@@ -195,8 +207,8 @@ export function ChatInterface({ selectedFile }: ChatInterfaceProps) {
     }, 100)
 
     try {
-      // Send message to the backend if repository and file are selected
-      if (selectedFile && selectedFile.content) {
+      // Send message to the backend if files are selected
+      if (selectedFiles.length > 0 && selectedFiles[0].content) {
         const repositoryId = "current" // You'd need to get the actual repository ID
 
         // Show loading message
@@ -205,9 +217,9 @@ export function ChatInterface({ selectedFile }: ChatInterfaceProps) {
           content: "Thinking..."
         }])
 
-        // Call the backend API to get a response
+        // Call the backend API to get a response using the first selected file
         // This uses the updated geminiApi.explainCode that accepts a question parameter
-        const response = await geminiApi.explainCode(selectedFile.content, input)
+        const response = await geminiApi.explainCode(selectedFiles[0].content, input)
 
         // Remove the loading message
         setMessages(prev => prev.slice(0, -1))
@@ -267,158 +279,169 @@ export function ChatInterface({ selectedFile }: ChatInterfaceProps) {
     }
   }
 
+  // Automatically expand the first file when files are loaded
+  useEffect(() => {
+    if (selectedFiles.length > 0 && expandedFiles.length === 0) {
+      setExpandedFiles([selectedFiles[0].path]);
+    }
+  }, [selectedFiles]);
+
   return (
-      <div className="flex flex-col h-[calc(100vh-4rem)]">
-        <ScrollArea ref={scrollRef} className="flex-1 p-4 space-y-4">
-          {/* Display selected file content */}
-          {selectedFile && selectedFile.content && (
-              <Card className="mb-4 p-4 bg-muted">
-                <p className="mb-2 font-semibold">{selectedFile.name}</p>
-                <SyntaxHighlighter
-                    language={getLanguage(selectedFile.name)}
-                    style={vscDarkPlus}
-                    wrapLongLines
-                    customStyle={{ borderRadius: '0.5rem', padding: '1rem' }}
-                >
-                  {selectedFile.content}
-                </SyntaxHighlighter>
-              </Card>
-          )}
-
-          {messages.map((message, index) => (
-              <Card key={index} className={`mb-4 p-4 ${message.role === 'assistant' ? 'bg-accent' : 'bg-muted'}`}>
-                {/* Check if it's a loading message for styling differently */}
-                {message.content === "Analyzing codebase..." || message.content === "Thinking..." || message.content === "Analyzing code..." ? (
-                    <div className="italic text-muted-foreground">{message.content}</div>
-                ) : (
-                    <div className="markdown-content">
-                      <ReactMarkdown
-                          components={{
-                            code({node, inline, className, children, ...props}) {
-                              const match = /language-(\w+)/.exec(className || '')
-                              return !inline && match ? (
-                                  <SyntaxHighlighter
-                                      language={match[1]}
-                                      style={vscDarkPlus}
-                                      wrapLongLines
-                                      customStyle={{ borderRadius: '0.5rem', padding: '1rem', marginTop: '0.5rem' }}
-                                      {...props}
-                                  >
-                                    {String(children).replace(/\n$/, '')}
-                                  </SyntaxHighlighter>
-                              ) : (
-                                  <code className={className} {...props}>
-                                    {children}
-                                  </code>
-                              )
-                            }
-                          }}
-                      >
-                        {message.content}
-                      </ReactMarkdown>
+    <div className="flex flex-col h-[calc(100vh-4rem)]">
+      <ScrollArea ref={scrollRef} className="flex-1 p-4 space-y-4">
+        {/* Display selected files in an accordion */}
+        {selectedFiles.length > 0 && (
+          <Card className="mb-4 overflow-hidden">
+            <div className="bg-card px-4 py-3 border-b">
+              <p className="font-medium">Selected Files ({selectedFiles.length})</p>
+            </div>
+            
+            <div className="divide-y">
+              {selectedFiles.map((file, index) => (
+                <div key={file.path} className="overflow-hidden">
+                  <div 
+                    className="flex items-center justify-between px-4 py-2 cursor-pointer hover:bg-accent/50 transition-colors"
+                    onClick={() => toggleFileExpansion(file.path)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileIcon className="h-4 w-4 text-blue-500" />
+                      <span className="font-medium text-sm">{file.name}</span>
                     </div>
-                )}
-
-                {/* Display code snippets if available */}
-                {message.codeSnippets && message.codeSnippets.length > 0 && (
-                    <div className="mt-4">
-                      {message.codeSnippets.map((snippet, snippetIndex) => (
-                          <div key={snippetIndex} className="mt-3">
-                            {snippet.explanation && <p className="mb-2">{snippet.explanation}</p>}
-                            <SyntaxHighlighter
-                                language={snippet.language}
-                                style={vscDarkPlus}
-                                wrapLongLines
-                                customStyle={{ borderRadius: '0.5rem', padding: '1rem' }}
-                            >
-                              {snippet.code}
-                            </SyntaxHighlighter>
-                          </div>
-                      ))}
+                    <div className="flex items-center text-muted-foreground">
+                      <div className="transition-transform duration-200 ease-in-out">
+                        {expandedFiles.includes(file.path) ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </div>
                     </div>
-                )}
-
-                {/* Display references if available */}
-                {message.references && message.references.length > 0 && (
-                    <div className="mt-4">
-                      <p className="font-medium">References:</p>
-                      <ul className="list-disc pl-5 mt-1">
-                        {message.references.map((ref, refIndex) => (
-                            <li key={refIndex}>
-                              <strong>{ref.name}</strong> ({ref.type}): {ref.description}
-                            </li>
-                        ))}
-                      </ul>
-                    </div>
-                )}
-
-                {message.code && (
-                    <SyntaxHighlighter
-                        language={message.code.language}
+                  </div>
+                  
+                  {expandedFiles.includes(file.path) && file.content && (
+                    <div className="border-t bg-muted/40">
+                      <SyntaxHighlighter
+                        language={getLanguage(file.name)}
                         style={vscDarkPlus}
                         wrapLongLines
-                        customStyle={{ borderRadius: '0.5rem', padding: '1rem', marginTop: '0.5rem' }}
+                        customStyle={{ 
+                          borderRadius: '0',
+                          padding: '1rem',
+                          margin: '0',
+                          backgroundColor: 'transparent'
+                        }}
+                      >
+                        {file.content}
+                      </SyntaxHighlighter>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+  
+        {messages.map((message, index) => (
+          <Card key={index} className={`mb-4 p-4 ${message.role === 'assistant' ? 'bg-accent' : 'bg-muted'}`}>
+            {/* Check if it's a loading message for styling differently */}
+            {message.content === "Analyzing codebase..." || message.content === "Thinking..." || message.content === "Analyzing code..." ? (
+              <div className="italic text-muted-foreground">{message.content}</div>
+            ) : (
+              <div className="markdown-content">
+                <ReactMarkdown
+                  components={{
+                    code({node, inline, className, children, ...props}) {
+                      const match = /language-(\w+)/.exec(className || '')
+                      return !inline && match ? (
+                        <SyntaxHighlighter
+                          language={match[1]}
+                          style={vscDarkPlus}
+                          wrapLongLines
+                          customStyle={{ borderRadius: '0.5rem', padding: '1rem', marginTop: '0.5rem' }}
+                          {...props}
+                        >
+                          {String(children).replace(/\n$/, '')}
+                        </SyntaxHighlighter>
+                      ) : (
+                        <code className={className} {...props}>
+                          {children}
+                        </code>
+                      )
+                    }
+                  }}
+                >
+                  {message.content}
+                </ReactMarkdown>
+              </div>
+            )}
+
+            {/* Display code snippets if available */}
+            {message.codeSnippets && message.codeSnippets.length > 0 && (
+              <div className="mt-4">
+                {message.codeSnippets.map((snippet, snippetIndex) => (
+                  <div key={snippetIndex} className="mt-3">
+                    {snippet.explanation && <p className="mb-2">{snippet.explanation}</p>}
+                    <SyntaxHighlighter
+                      language={snippet.language}
+                      style={vscDarkPlus}
+                      wrapLongLines
+                      customStyle={{ borderRadius: '0.5rem', padding: '1rem' }}
                     >
-                      {message.code.content}
+                      {snippet.code}
                     </SyntaxHighlighter>
-                )}
+                  </div>
+                ))}
+              </div>
+            )}
 
-                {/* Display code snippets if available */}
-                {message.codeSnippets && message.codeSnippets.length > 0 && (
-                    <div className="mt-4">
-                      {message.codeSnippets.map((snippet, snippetIndex) => (
-                          <div key={snippetIndex} className="mt-3">
-                            {snippet.explanation && <p className="mb-2">{snippet.explanation}</p>}
-                            <SyntaxHighlighter
-                                language={snippet.language}
-                                style={vscDarkPlus}
-                                wrapLongLines
-                                customStyle={{ borderRadius: '0.5rem', padding: '1rem' }}
-                            >
-                              {snippet.code}
-                            </SyntaxHighlighter>
-                          </div>
-                      ))}
-                    </div>
-                )}
+            {/* Display references if available */}
+            {message.references && message.references.length > 0 && (
+              <div className="mt-4">
+                <p className="font-medium">References:</p>
+                <ul className="list-disc pl-5 mt-1">
+                  {message.references.map((ref, refIndex) => (
+                    <li key={refIndex}>
+                      <strong>{ref.name}</strong> ({ref.type}): {ref.description}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-                {/* Display references if available */}
-                {message.references && message.references.length > 0 && (
-                    <div className="mt-4">
-                      <p className="font-medium">References:</p>
-                      <ul className="list-disc pl-5 mt-1">
-                        {message.references.map((ref, refIndex) => (
-                            <li key={refIndex}>
-                              <strong>{ref.name}</strong> ({ref.type}): {ref.description}
-                            </li>
-                        ))}
-                      </ul>
-                    </div>
-                )}
-              </Card>
-          ))}
-        </ScrollArea>
-
-        <div className="p-4 border-t flex flex-col gap-2">
-          <div className="flex gap-2">
-            <Input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                placeholder="Ask about your code..."
-                className="flex-1"
-            />
-            <Button onClick={handleSend}>
-              <SendIcon className="h-4 w-4" />
-            </Button>
-          </div>
-          {/* New Explain Code button */}
-          <div className="flex justify-end">
-            <Button onClick={handleExplainCode} disabled={!selectedFile}>
-              Explain Code
-            </Button>
-          </div>
+            {message.code && (
+              <SyntaxHighlighter
+                language={message.code.language}
+                style={vscDarkPlus}
+                wrapLongLines
+                customStyle={{ borderRadius: '0.5rem', padding: '1rem', marginTop: '0.5rem' }}
+              >
+                {message.code.content}
+              </SyntaxHighlighter>
+            )}
+          </Card>
+        ))}
+      </ScrollArea>
+  
+      <div className="p-4 border-t flex flex-col gap-2">
+        <div className="flex gap-2">
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+            placeholder="Ask about your code..."
+            className="flex-1"
+          />
+          <Button onClick={handleSend}>
+            <SendIcon className="h-4 w-4" />
+          </Button>
+        </div>
+        {/* Explain Code button */}
+        <div className="flex justify-end">
+          <Button onClick={handleExplainCode} disabled={selectedFiles.length === 0}>
+            Explain Code
+          </Button>
         </div>
       </div>
+    </div>
   )
 }
