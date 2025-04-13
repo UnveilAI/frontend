@@ -172,3 +172,8 @@
   color: #3182ce;
   text-decoration: underline;
 }
+
+.static-glow-border {
+  box-shadow: 0 0 20px #00f6ff, 0 0 30px #00f6ff;
+  border-radius: 1rem;
+}
