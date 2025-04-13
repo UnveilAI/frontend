@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError, AxiosRequestConfig } from 'axios';
+import {FileNode} from "@/lib/file-processing";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const DEBUG = process.env.NEXT_PUBLIC_API_DEBUG === 'true';
@@ -100,8 +101,8 @@ const api: AxiosInstance = axios.create({
 });
 
 // Add request interceptor for logging
-// @ts-ignore
 api.interceptors.request.use(
+    // @ts-ignore
     (config: AxiosRequestConfig): AxiosRequestConfig => {
     const configWithMetadata = config as AxiosRequestConfigWithMetadata;
     const startTime = Date.now();
@@ -201,6 +202,13 @@ interface FileContent {
     content: string;
 }
 
+interface CodebaseJSONPayload {
+    name: string;
+    description: string;
+    source: string;
+    codebase: FileNode[];
+}
+
 // Repository APIs
 export const repositoryApi = {
     // Upload a repository (either ZIP file or Git URL)
@@ -272,6 +280,16 @@ getFileContent: async (repositoryId: string, filePath: string): Promise<FileCont
     } catch (error) {
         logger.error('get', `/api/repositories/${repositoryId}/files/${filePath}`, error as AxiosError);
         throw error;
+    }
+},
+
+// Parse codebase as JSON
+// @ts-ignore
+uploadCodebaseJson: async (payload: CodebaseJSONPayload, filePath: string): Promise<Repository> => {
+    try {
+        const endpoint = 'api/repositories/'
+    } catch {
+
     }
 },
 

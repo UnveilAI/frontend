@@ -11,7 +11,9 @@ import { Button } from '@/components/ui/button'
 import { ShareNetwork } from 'phosphor-react'
 import { ShareOptionsModal } from '@/components/share-options-modal'
 import { WelcomeModal } from '@/components/welcome-modal'
-        
+import { ApiMonitor } from '@/components/ApiMonitor';
+
+
 export default function Home() {
   const [files, setFiles] = React.useState([])
   const [isShareModalOpen, setShareModalOpen] = React.useState(false)
@@ -27,7 +29,7 @@ export default function Home() {
   const closeShareModal = () => {
     setShareModalOpen(false)
   }
-  
+
   const handleToggleSelect = (node: FileNode, selected: boolean) => {
     // Create a deep copy of the files array
     const updateNodeSelection = (nodes: FileNode[]): FileNode[] => {
@@ -44,7 +46,7 @@ export default function Home() {
         return n;
       });
     };
-    
+
     setFiles(updateNodeSelection(files));
   }
 return (
@@ -67,13 +69,14 @@ return (
         <div className="w-80 border-r bg-card">
           <FileUpload onUpload={setFiles} />
           <Separator />
-          <FileTree 
-            files={files} 
-            onSelect={handleFileSelect} 
-            onToggleSelect={handleToggleSelect} 
+          <FileTree
+            files={files}
+            onSelect={handleFileSelect}
+            onToggleSelect={handleToggleSelect}
           />
         </div>
         <div className="flex-1 overflow-y-auto">
+          <ApiMonitor />
           <ChatInterface />
         </div>
       </div>

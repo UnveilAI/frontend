@@ -57,6 +57,7 @@ export function ApiMonitor(): React.ReactElement | null {
         // Create custom event listeners for API calls
         const handleApiRequest = (e: CustomEvent<ApiRequestEvent>) => {
             const { method, url, data, timestamp } = e.detail;
+            // @ts-ignore
             setApiCalls(prev => {
                 const newCalls = [
                     {
